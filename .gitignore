@@ -1,0 +1,24 @@
+# Build artifacts
+/target/
+**/*.rs.bk
+
+# Database
+/data/*.db
+
+# Media files (user content)
+/media/
+
+# Thumbnails and cache
+/thumbnails/
+/cache/
+
+# Environment (secrets)
+.env
+.env.*
+
+# FFmpeg logs
+*.log
+
+# IDE
+.idea/
+.vscode/
