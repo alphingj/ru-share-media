@@ -9,7 +9,7 @@ use axum::{
   extract::{Path, State},
   http::{header::{COOKIE, CONTENT_TYPE}, HeaderValue, Method, Request, Response, StatusCode},
   response::{Html, Json},
-  routing::{get, post},
+  routing::{delete, get, post},
   Router,
 };
 use serde::Deserialize;
@@ -184,10 +184,10 @@ async fn login_handler(
 async fn library_handler(State(pool): State<SqlitePool>, headers: axum::http::HeaderMap) -> Result<Json<Vec<models::MediaItem>>, StatusCode> {
   let (user_id, _is_admin) = validate_session(&pool, &headers).await?;
   
+  // Show all media for now (family shared library) - can be filtered by user_id if needed
   let items: Vec<models::MediaItem> = sqlx::query_as(
-    "SELECT f.id, f.filename, f.size_bytes, f.duration_seconds, f.width, f.height, m.title, m.year, m.poster_url, m.backdrop_url, m.media_type FROM media_files f LEFT JOIN media_metadata m ON f.id = m.media_id WHERE f.user_id = ? ORDER BY f.created_at DESC LIMIT 100"
+    "SELECT f.id, f.filename, f.size_bytes, f.duration_seconds, f.width, f.height, m.title, m.year, m.poster_url, m.backdrop_url, m.media_type FROM media_files f LEFT JOIN media_metadata m ON f.id = m.media_id ORDER BY f.created_at DESC LIMIT 100"
   )
-  .bind(user_id)
   .fetch_all(&pool)
   .await
   .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -239,6 +239,119 @@ async fn health_handler() -> &'static str {
   "OK"
 }
 
+// ==================== Admin User Management ====================
+
+#[derive(Deserialize)]
+struct CreateUserRequest {
+  username: String,
+  password: String,
+}
+
+async fn create_user_handler(
+  State(pool): State<SqlitePool>,
+  headers: axum::http::HeaderMap,
+  Json(input): Json<CreateUserRequest>,
+) -> Result<StatusCode, StatusCode> {
+  let (_user_id, is_admin) = validate_session(&pool, &headers).await?;
+  if !is_admin {
+    return Err(StatusCode::FORBIDDEN);
+  }
+
+  let now = std::time::SystemTime::now()
+    .duration_since(std::time::UNIX_EPOCH)
+    .unwrap()
+    .as_secs() as i64;
+
+  let exists: Option<(i64,)> = sqlx::query_as("SELECT id FROM users WHERE username = ?")
+    .bind(&input.username)
+    .fetch_optional(&pool)
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+  if exists.is_some() {
+    return Err(StatusCode::CONFLICT);
+  }
+
+  let password_hash = match crate::auth::hash_password(&input.password) {
+    Ok(h) => h,
+    Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+  };
+
+  sqlx::query("INSERT INTO users (username, password_hash, is_admin, created_at) VALUES (?, ?, 0, ?)")
+    .bind(&input.username)
+    .bind(&password_hash)
+    .bind(now)
+    .execute(&pool)
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+  Ok(StatusCode::CREATED)
+}
+
+async fn list_users_handler(
+  State(pool): State<SqlitePool>,
+  headers: axum::http::HeaderMap,
+) -> Result<Json<Vec<serde_json::Value>>, StatusCode> {
+  let (_user_id, is_admin) = validate_session(&pool, &headers).await?;
+  if !is_admin {
+    return Err(StatusCode::FORBIDDEN);
+  }
+
+  let users: Vec<serde_json::Value> = sqlx::query_as(
+    "SELECT id, username, is_admin, created_at FROM users ORDER BY username"
+  )
+  .fetch_all(&pool)
+  .await
+  .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+  .into_iter()
+  .map(|u: (i64, String, i64, i64)| {
+    serde_json::json!({
+      "id": u.0,
+      "username": u.1,
+      "is_admin": u.2 != 0,
+      "created_at": u.3
+    })
+  })
+  .collect();
+
+  Ok(Json(users))
+}
+
+async fn delete_user_handler(
+  State(pool): State<SqlitePool>,
+  headers: axum::http::HeaderMap,
+  Path(user_id): Path<i64>,
+) -> Result<StatusCode, StatusCode> {
+  let (admin_user_id, is_admin) = validate_session(&pool, &headers).await?;
+  if !is_admin {
+    return Err(StatusCode::FORBIDDEN);
+  }
+
+  // Prevent deleting own account
+  if user_id == admin_user_id {
+    return Err(StatusCode::BAD_REQUEST);
+  }
+
+  // Prevent deleting other admins
+  let is_target_admin: Option<i64> = sqlx::query_scalar("SELECT is_admin FROM users WHERE id = ?")
+    .bind(user_id)
+    .fetch_optional(&pool)
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+  if is_target_admin.map(|is_admin| is_admin != 0).unwrap_or(true) {
+    return Err(StatusCode::FORBIDDEN);
+  }
+
+  sqlx::query("DELETE FROM users WHERE id = ?")
+    .bind(user_id)
+    .execute(&pool)
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+  Ok(StatusCode::NO_CONTENT)
+}
+
 #[tokio::main]
 async fn main() {
   tracing_subscriber::fmt::init();
@@ -258,6 +371,10 @@ async fn main() {
     .route("/api/library", get(library_handler))
     .route("/api/scan", post(scan_handler))
     .route("/api/health", get(health_handler))
+    // Admin user management
+    .route("/api/admin/users", get(list_users_handler).post(create_user_handler))
+    .route("/api/admin/users/:id", delete(delete_user_handler))
+    // Streaming
     .route("/hls/:id/:quality", get(stream_handler))
     .nest_service("/hls", ServeDir::new(&format!("{}/hls", data_path)))
     .nest_service("/thumbnails", ServeDir::new(&format!("{}/thumbnails", data_path)))
