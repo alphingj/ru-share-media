@@ -42,13 +42,21 @@ install_binary() {
   local arch=$1
   local version=$2
   local url="https://github.com/${REPO}/releases/download/${version}/${arch}"
-  
+
   info "Downloading ${arch}..."
-  curl -fsSL "$url" -o /tmp/ru-share-media || {
-    err "Failed to download binary - try building from source"
-  }
-  
-  install -m 755 /tmp/ru-share-media /usr/local/bin/
+  if curl -fsSL "$url" -o /tmp/ru-share-media; then
+    :
+  else
+    info "Per-arch binary not found, trying release archive..."
+    local archive_url="https://github.com/${REPO}/releases/download/${version}/ru-share-media.tar.gz"
+    curl -fsSL "$archive_url" -o /tmp/ru-share-media.tar.gz || {
+      err "Failed to download release archive - try building from source"
+    }
+    tar -xzf /tmp/ru-share-media.tar.gz -C /tmp
+    rm -f /tmp/ru-share-media.tar.gz
+  fi
+
+  install -m 755 /tmp/ru-share-media /usr/local/bin/ru-share-media
   rm -f /tmp/ru-share-media
   info "Installed to /usr/local/bin/ru-share-media"
 }

@@ -11,46 +11,95 @@ jobs:
     permissions:
       contents: write
 
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            name: ru-share-media-x86_64-linux
+            cross: false
+          - target: aarch64-unknown-linux-musl
+            name: ru-share-media-aarch64-linux
+            cross: false
+          - target: armv7-unknown-linux-musleabihf
+            name: ru-share-media-armv7-linux
+            cross: true
+          - target: arm-unknown-linux-gnueabihf
+            name: ru-share-media-armv6-linux
+            cross: true
+
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: rustfmt, clippy
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+          components: rustfmt, clippy
 
-    - name: Cache cargo registry
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-cargo-
+      - name: Install target
+        run: rustup target add ${{ matrix.target }}
 
-    - name: Build release
-      run: cargo build --release
+      - name: Install ARM toolchain
+        if: matrix.cross
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu musl-tools musl-dev
 
-    - name: Create release archives
-      run: |
-        cd target/release
-        tar -czvf ru-share-media.tar.gz ru-share-media
-        zip -j ru-share-media.zip ru-share-media
+      - name: Build release
+        run: |
+          BUILD_DIR=target-release
+          mkdir -p "$BUILD_DIR"
+          cargo build --release --target ${{ matrix.target }}
+          cp target/${{ matrix.target }}/release/ru-share-media "$BUILD_DIR/${{ matrix.name }}"
 
-    - name: Compute checksums
-      run: sha256sum target/release/ru-share-media.zip | cut -d ' ' -f 1 > checksum.txt
+      - name: Compute checksums
+        run: |
+          cd target-release
+          sha256sum * > checksums.txt
 
-    - name: Get release date
-      id: date
-      run: echo "date=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: target-release/${{ matrix.name }}
 
-    - name: Create GitHub Release
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        gh release create "${{ github.ref_name }}" \
-          --title "ru-share-media ${{ github.ref_name }}" \
-          --notes "Release ${{ github.ref_name }} - ${{ steps.date.outputs.date }}" \
-          target/release/ru-share-media.tar.gz \
-          target/release/ru-share-media.zip
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          for dir in artifacts/*/; do
+            cp "$dir"/* release-assets/ 2>/dev/null || true
+          done
+          ls -la release-assets
+
+      - name: Get release date
+        id: date
+        run: echo "date=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "ru-share-media ${{ github.ref_name }}" \
+            --notes "Release ${{ github.ref_name }} - ${{ steps.date.outputs.date }}
+
+Multi-arch binaries included:
+- x86_64-linux
+- aarch64-linux
+- armv7-linux
+- armv6-linux" \
+            release-assets/*
