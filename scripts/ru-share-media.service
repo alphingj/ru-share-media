@@ -1,0 +1,32 @@
+# ru-share-media.service - Systemd service for ru-share media server
+# Install: sudo cp ru-share-media.service /etc/systemd/system/
+# Enable: sudo systemctl enable ru-share-media
+# Start: sudo systemctl start ru-share-media
+
+[Unit]
+Description=ru-share Media Server
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=media
+Group=media
+WorkingDirectory=/opt/ru-share
+ExecStart=/opt/ru-share/ru-share-media
+Restart=on-failure
+RestartSec=5
+
+# Environment variables
+Environment=ADMIN_USER=admin
+Environment=ADMIN_PASS=change-me-in-production
+Environment=RU_SHARE_MEDIA_PATH=/mnt/media
+Environment=RU_SHARE_LISTEN=0.0.0.0:8080
+Environment=RU_SHARE_CORS_ORIGIN=http://localhost:8080
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

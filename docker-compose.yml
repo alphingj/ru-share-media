@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  ru-share:
+    image: ghcr.io/alphingj/ru-share-media:latest
+    container_name: ru-share-media
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./media:/app/media
+      - ./data:/app/data
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - ADMIN_USER=${ADMIN_USER:-admin}
+      - ADMIN_PASS=${ADMIN_PASS}
+      - RU_SHARE_MEDIA_PATH=/app/media
+      - RU_SHARE_LISTEN=0.0.0.0:8080
+      - RU_SHARE_CORS_ORIGIN=*
+    networks:
+      zerotier_net:
+        ipv4_address: 10.147.17.2
+
+  zerotier-one:
+    image: zerotier/zerotier-one:latest
+    container_name: zerotier
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - SYS_ADMIN
+    volumes:
+      - ./zerotier:/var/lib/zerotier-one
+      - /etc/localtime:/etc/localtime:ro
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - ZT_NETWORK_ID=${ZEROTIER_NETWORK_ID}
+    depends_on:
+      - ru-share
+
+  dnsmasq:
+    image: andyshinn/dnsmasq
+    container_name: dnsmasq
+    restart: unless-stopped
+    network_mode: bridge
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+    volumes:
+      - ./dnsmasq.conf:/etc/dnsmasq.conf:ro
+    environment:
+      - TZ=Asia/Kolkata
+
+networks:
+  zerotier_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.147.17.0/24
