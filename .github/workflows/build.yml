@@ -13,9 +13,10 @@ jobs:
       matrix:
         target:
           - { name: x86_64-linux, rust: x86_64-unknown-linux-gnu, binary: ru-share-media-x86_64-linux }
+          - { name: x86_64-musl, rust: x86_64-unknown-linux-musl, binary: ru-share-media-x86_64-musl-linux }
           - { name: aarch64-linux, rust: aarch64-unknown-linux-gnu, binary: ru-share-media-aarch64-linux }
           - { name: armv7-linux, rust: armv7-unknown-linux-gnueabihf, binary: ru-share-media-armv7-linux }
-          - { name: armv6-musl, rust: armv6-unknown-linux-gnueabihf, binary: ru-share-media-armv6-musl-linux }
+          - { name: armv6-linux, rust: armv6-unknown-linux-gnueabihf, binary: ru-share-media-armv6-musl-linux }
 
     steps:
       - uses: actions/checkout@v4
