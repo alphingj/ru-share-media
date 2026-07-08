@@ -1,6 +1,7 @@
 -- Media files table
 CREATE TABLE IF NOT EXISTS media_files (
     id TEXT PRIMARY KEY NOT NULL,
+    user_id INTEGER DEFAULT 1,
     path TEXT NOT NULL,
     filename TEXT NOT NULL,
     size_bytes INTEGER NOT NULL DEFAULT 0,

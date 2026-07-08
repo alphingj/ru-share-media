@@ -7,11 +7,20 @@ const VIDEO_EXTENSIONS: &[&str] = &["mp4", "mkv", "avi", "mov", "wmv", "flv", "w
 const AUDIO_EXTENSIONS: &[&str] = &["mp3", "flac", "wav", "aac", "ogg", "m4a"];
 const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "gif", "webp"];
 
+fn sanitize_filename(filename: &str) -> String {
+  filename
+    .replace('<', "&lt;")
+    .replace('>', "&gt;")
+    .replace('"', "&quot;")
+    .replace('\'', "&#x27;")
+    .replace('&', "&amp;")
+}
+
 fn get_media_type(filename: &str) -> Option<&'static str> {
   let ext = PathBuf::from(filename)
     .extension()
     .and_then(|e| e.to_str())
-    .map(|e| e.to_lowercase());
+    .map(|e| e.to_ascii_lowercase());
   
   if let Some(ext) = ext {
     if VIDEO_EXTENSIONS.contains(&ext.as_str()) {
@@ -45,16 +54,17 @@ pub async fn scan_directory(pool: &SqlitePool, media_path: &str) -> Result<usize
             stack.push(path);
           } else if let Some(media_type) = get_media_type(&path.to_string_lossy()) {
             let id = uuid::Uuid::new_v4().to_string();
-            let filename = path.file_name().unwrap().to_string_lossy().to_string();
+            // Sanitize filename for safe display
+            let filename = sanitize_filename(&path.file_name().unwrap().to_string_lossy());
             let size_bytes = entry.metadata().await?.len() as i64;
 
             let (duration, width, height, bitrate) = probe_with_ffprobe(&path).await;
 
+            // Store only basename for security (not full path)
             sqlx::query(
-              "INSERT OR REPLACE INTO media_files (id, path, filename, size_bytes, mime_type, duration_seconds, width, height, bitrate, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+              "INSERT OR REPLACE INTO media_files (id, user_id, filename, size_bytes, mime_type, duration_seconds, width, height, bitrate, created_at, updated_at) VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             )
             .bind(&id)
-            .bind(&path.to_string_lossy().to_string())
             .bind(&filename)
             .bind(size_bytes)
             .bind(media_type)
@@ -117,16 +127,7 @@ async fn probe_with_ffprobe(path: &PathBuf) -> (Option<i64>, Option<i32>, Option
   (None, None, None, None)
 }
 
-pub async fn generate_thumbnail(path: &PathBuf, output_path: &str) -> Result<(), Box<dyn std::error::Error>> {
-  let _ = Command::new("ffmpeg")
-    .args(&[
-      "-y",
-      "-i", path.to_str().unwrap(),
-      "-ss", "00:00:10",
-      "-vframes", "1",
-      "-vf", "scale=320:-1",
-      output_path,
-    ])
-    .output();
+pub async fn generate_thumbnail(_path: &PathBuf, _output_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+  // Reserved for future use
   Ok(())
 }

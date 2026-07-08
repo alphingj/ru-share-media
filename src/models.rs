@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct MediaFile {
   pub id: String,
+  pub user_id: i64,
   pub path: String,
   pub filename: String,
   pub size_bytes: i64,
