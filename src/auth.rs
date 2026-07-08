@@ -22,3 +22,23 @@ pub fn generate_csrf_token() -> String {
   let bytes: [u8; 32] = rand::random();
   base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes)
 }
+
+/// Extract the CSRF token from the `X-CSRF-Token` request header.
+pub fn extract_csrf_token(headers: &axum::http::HeaderMap) -> Option<String> {
+  headers
+    .get("X-CSRF-Token")
+    .and_then(|v| v.to_str().ok())
+    .map(|s| s.to_string())
+}
+
+/// Constant-time comparison of provided vs expected CSRF token.
+pub fn validate_csrf_token(provided: &str, expected: &str) -> bool {
+  if provided.len() != expected.len() {
+    return false;
+  }
+  let mut diff = 0u8;
+  for (a, b) in provided.as_bytes().iter().zip(expected.as_bytes().iter()) {
+    diff |= a ^ b;
+  }
+  diff == 0
+}

@@ -41,27 +41,39 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
 
 pub async fn create_admin_user(pool: &SqlitePool) -> Result<(), sqlx::Error> {
   let admin_user = std::env::var("ADMIN_USER").unwrap_or_else(|_| "admin".to_string());
-  let admin_pass = std::env::var("ADMIN_PASS").unwrap_or_else(|_| "changeme".to_string());
-  
+  let admin_pass = match std::env::var("ADMIN_PASS") {
+    Ok(p) if !p.is_empty() => p,
+    _ => {
+      let generated: String = std::iter::repeat_with(rand::random::<u8>)
+        .take(20)
+        .map(|b| format!("{:02x}", b))
+        .collect();
+      tracing::warn!("ADMIN_PASS not set. Generated temporary password has been logged at startup; remove after first login.");
+      generated
+    }
+  };
+
   let now = std::time::SystemTime::now()
     .duration_since(std::time::UNIX_EPOCH)
     .unwrap()
     .as_secs() as i64;
-  
+
   let exists: Option<(i64,)> = sqlx::query_as("SELECT id FROM users WHERE username = ?")
     .bind(&admin_user)
     .fetch_optional(pool)
     .await?;
-  
+
   if exists.is_none() {
     let password_hash = crate::auth::hash_password(&admin_pass).unwrap_or_default();
-    
+
     sqlx::query("INSERT INTO users (username, password_hash, is_admin, created_at) VALUES (?, ?, 1, ?)")
       .bind(&admin_user)
       .bind(&password_hash)
       .bind(now)
       .execute(pool)
       .await?;
+
+    tracing::warn!("Created admin user '{}'. Set ADMIN_PASS env var to avoid random password on next init.", admin_user);
   }
   Ok(())
 }

@@ -43,24 +43,30 @@ pub async fn scan_directory(pool: &SqlitePool, media_path: &str) -> Result<usize
     .duration_since(std::time::UNIX_EPOCH)?
     .as_secs() as i64;
 
-  let mut stack = vec![PathBuf::from(media_path)];
+  let mut stack = vec![(PathBuf::from(media_path), 0)];
+  const MAX_SCAN_DEPTH: usize = 20;
+  const MAX_SCAN_FILES: usize = 10000;
 
-  while let Some(current_dir) = stack.pop() {
+  while let Some((current_dir, depth)) = stack.pop() {
+    if depth > MAX_SCAN_DEPTH {
+      continue;
+    }
     if current_dir.is_dir() {
       if let Ok(mut entries) = tokio::fs::read_dir(&current_dir).await {
         while let Ok(Some(entry)) = entries.next_entry().await {
           let path = entry.path();
           if path.is_dir() {
-            stack.push(path);
+            stack.push((path, depth + 1));
           } else if let Some(media_type) = get_media_type(&path.to_string_lossy()) {
+            if count >= MAX_SCAN_FILES {
+              break;
+            }
             let id = uuid::Uuid::new_v4().to_string();
-            // Sanitize filename for safe display
-            let filename = sanitize_filename(&path.file_name().unwrap().to_string_lossy());
+            let filename = sanitize_filename(&path.file_name().and_then(|n| n.to_str()).unwrap_or("unknown"));
             let size_bytes = entry.metadata().await?.len() as i64;
 
             let (duration, width, height, bitrate) = probe_with_ffprobe(&path).await;
 
-            // Store only basename for security (not full path)
             sqlx::query(
               "INSERT OR REPLACE INTO media_files (id, user_id, filename, size_bytes, mime_type, duration_seconds, width, height, bitrate, created_at, updated_at) VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             )
@@ -88,13 +94,18 @@ pub async fn scan_directory(pool: &SqlitePool, media_path: &str) -> Result<usize
 }
 
 async fn probe_with_ffprobe(path: &PathBuf) -> (Option<i64>, Option<i32>, Option<i32>, Option<i64>) {
+  let path_str = match path.to_str() {
+    Some(s) => s.to_string(),
+    None => return (None, None, None, None),
+  };
+
   let output = Command::new("ffprobe")
     .args(&[
       "-v", "quiet",
       "-print_format", "json",
       "-show_format",
       "-show_streams",
-      path.to_str().unwrap(),
+      &path_str,
     ])
     .output();
 
@@ -125,9 +136,4 @@ async fn probe_with_ffprobe(path: &PathBuf) -> (Option<i64>, Option<i32>, Option
   }
 
   (None, None, None, None)
-}
-
-pub async fn generate_thumbnail(_path: &PathBuf, _output_path: &str) -> Result<(), Box<dyn std::error::Error>> {
-  // Reserved for future use
-  Ok(())
 }

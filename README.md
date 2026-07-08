@@ -1,53 +1,78 @@
-# ru-share-media v3.0.0
+# ru-share-media
 
-Netflix-style self-hosted media server with DLNA/UPnP support. Stream your media library to any device.
+Netflix-style self-hosted media server with session-based authentication.
 
 ## Features
 
-- **Netflix-style UI**: Dark theme with hero banners, horizontal rows, and responsive design
-- **DLNA/UPnP Discovery**: Automatic discovery on local network
-- **HLS Streaming**: Adaptive bitrate playback (1080p, 720p, 480p, 360p)
-- **Media Scanning**: Automatic metadata extraction via ffprobe
-- **ZeroTier Support**: Secure remote access via VPN
-- **Pi Zero Compatible**: Optimized builds for ARM devices
+- Session-based authentication with Argon2id password hashing
+- CSRF protection on all state-changing endpoints
+- Admin-managed user accounts with RBAC
+- Media scanning with ffprobe metadata extraction
+- SQLite database for metadata storage
+- Rate limiting per IP
+- CORS support with CIDR subnet ranges
+- Responsive Netflix-style UI
 
-## Quick Start
+## Installation
 
+### From GitHub Releases
+
+Download the latest release for your platform from the [Releases](https://github.com/alphingj/ru-share-media/releases) page.
+
+Extract and run:
 ```bash
-# Download and run
-curl -fsSL https://github.com/alphingj/ru-share-media/releases/latest/download/ru-share-media-x86_64-linux -o ru-share-media
-chmod +x ru-share-media
+tar -xzf ru-share-media.tar.gz
 ./ru-share-media
 ```
 
-Visit `http://localhost:8080` to start watching.
+### From Source
+
+```bash
+git clone https://github.com/alphingj/ru-share-media.git
+cd ru-share-media
+cargo build --release
+./target/release/ru-share-media
+```
 
 ## Configuration
 
-```bash
-export RU_SHARE_MEDIA_PATH=/path/to/media
-export RU_SHARE_LISTEN=0.0.0.0:8080
-export RU_SHARE_CORS_ORIGIN="http://localhost:8080,http://192.168.1.0/24,http://10.215.169.0/24"
-export ADMIN_USER=admin
-export ADMIN_PASS=securepassword
-```
+Environment variables:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ADMIN_USER` | Admin username | `admin` |
+| `ADMIN_PASS` | Admin password (required; if not set, a random one is generated) | - |
+| `RU_SHARE_MEDIA_PATH` | Media storage directory | `./media` |
+| `RU_SHARE_LISTEN` | Listen address | `0.0.0.0:8080` |
+| `RU_SHARE_CORS_ORIGIN` | CORS origins (comma-separated, supports CIDR) | `http://localhost:8080` |
+
+## Usage
+
+1. Start the server
+2. Login with admin credentials
+3. Configure CORS origins if needed
+4. Upload media files to the media directory
+5. Run a scan via the admin panel to index media
 
 ## API Endpoints
 
-- `GET /api/library` - Browse media
-- `POST /api/scan` - Rescan media directory
-- `POST /api/login` - Authentication
-- `GET /hls/:id` - HLS stream
-- `GET /api/health` - Health check
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/api/login` | ❌ | Login with username/password |
+| GET | `/api/logout` | ✅ | Invalidate session |
+| GET | `/api/library` | ✅ | Browse media library |
+| POST | `/api/scan` | ✅+Admin | Trigger media scan |
+| POST | `/api/admin/users` | ✅+Admin | Create new user |
+| GET | `/api/admin/users` | ✅+Admin | List all users |
+| DELETE | `/api/admin/users/:id` | ✅+Admin | Delete user |
+| GET | `/api/health` | ❌ | Health check |
 
-## Install with ZeroTier
+## Security
 
-```bash
-sudo curl -fsSL https://raw.githubusercontent.com/alphingj/ru-share-media/main/scripts/install.sh | bash
-```
-
-## Supported Formats
-
-- Video: MP4, MKV, AVI, MOV, WMV, FLV, WebM, M4V
-- Audio: MP3, FLAC, WAV, AAC, OGG, M4A
-- Images: JPG, PNG, GIF, WebP
+- Passwords hashed with Argon2id
+- UUIDs used for session IDs (not predictable)
+- CSRF tokens required for state-changing requests
+- HttpOnly SameSite cookies for session
+- 60 requests/minute rate limiting per IP
+- Path traversal protection
+- SQL injection protection via parameterized queries

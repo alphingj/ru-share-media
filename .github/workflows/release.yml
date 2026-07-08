@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+
+    - name: Build release
+      run: cargo build --release
+
+    - name: Create release archives
+      run: |
+        cd target/release
+        tar -czvf ru-share-media.tar.gz ru-share-media
+        zip -j ru-share-media.zip ru-share-media
+
+    - name: Compute checksums
+      run: sha256sum target/release/ru-share-media.zip | cut -d ' ' -f 1 > checksum.txt
+
+    - name: Get release date
+      id: date
+      run: echo "date=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
+
+    - name: Create GitHub Release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release create "${{ github.ref_name }}" \
+          --title "ru-share-media ${{ github.ref_name }}" \
+          --notes "Release ${{ github.ref_name }} - ${{ steps.date.outputs.date }}" \
+          target/release/ru-share-media.tar.gz \
+          target/release/ru-share-media.zip

@@ -1,230 +1,261 @@
 <!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ru-share Media</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            netflix: {
-              red: '#E50914',
-              dark: '#141414',
-              'dark-gray': '#2F2F2F',
-              'light-gray': '#737373',
-            }
-          }
-        }
-      }
-    }
-  </script>
+  <style>
+    .netflix-red { color: #E50914; }
+    .netflix-dark { background-color: #141414; }
+    .netflix-dark-gray { background-color: #2F2F2F; }
+    .netflix-light-gray { color: #737373; }
+    .bg-netflix-red { background-color: #E50914; }
+    .hover-text-netflix-red:hover { color: #E50914; }
+    body { background-color: #141414; color: white; min-height: 100vh; }
+    .min-h-screen { min-height: 100vh; }
+    .flex { display: flex; }
+    .items-center { align-items: center; }
+    .justify-center { justify-content: center; }
+    .flex-col { flex-direction: column; }
+    .max-w-md { max-width: 28rem; }
+    .w-full { width: 100%; }
+    .p-8 { padding: 2rem; }
+    .rounded-lg { border-radius: 0.5rem; }
+    .mb-4 { margin-bottom: 1rem; }
+    .w-full { width: 100%; }
+    .px-4 { padding-left: 1rem; padding-right: 1rem; }
+    .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+    .focus-ring-netflix-red:focus { outline: 1px solid #E50914; }
+    .hover-bg-red-700:hover { background-color: #c50813; }
+    .text-sm { font-size: 0.875rem; }
+    .text-xl { font-size: 1.25rem; }
+    .font-bold { font-weight: 700; }
+    .hidden { display: none; }
+    .fixed { position: fixed; }
+    .top-0 { top: 0; }
+    .w-full { width: 100%; }
+    .z-50 { z-index: 50; }
+    .pt-20 { padding-top: 5rem; }
+    .px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
+    .mb-8 { margin-bottom: 2rem; }
+    .overflow-x-auto { overflow-x: auto; }
+    .pb-4 { padding-bottom: 1rem; }
+    .space-x-4 > * + * { margin-left: 1rem; }
+    .space-y-2 > * + * { margin-top: 0.5rem; }
+    .flex-1 { flex: 1; }
+    .rounded { border-radius: 0.25rem; }
+    .cursor-pointer { cursor: pointer; }
+    .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .text-center { text-align: center; }
+  </style>
 </head>
-<body class="bg-black text-white min-h-screen">
+<body>
   <div id="app">
-    <!-- Login View -->
     <div id="login-view" class="flex items-center justify-center min-h-screen">
-      <div class="bg-netflix-dark-gray p-8 rounded-lg max-w-md w-full">
-        <h1 class="text-3xl font-bold mb-6 text-center text-netflix-red">ru-share Media</h1>
-        <input id="username" type="text" placeholder="Username" class="w-full bg-netflix-dark-gray border border-netflix-light-gray rounded px-4 py-2 mb-4 focus:outline-none focus:ring-1 focus:ring-netflix-red">
-        <input id="password" type="password" placeholder="Password" class="w-full bg-netflix-dark-gray border border-netflix-light-gray rounded px-4 py-2 mb-4 focus:outline-none focus:ring-1 focus:ring-netflix-red">
-        <button id="login-btn" class="w-full bg-netflix-red text-white py-2 rounded font-bold hover:bg-red-700 transition">Login</button>
+      <div class="netflix-dark-gray p-8 rounded-lg max-w-md w-full">
+        <h1 class="text-3xl font-bold mb-6 text-center netflix-red">ru-share Media</h1>
+        <input id="username" type="text" placeholder="Username" class="w-full netflix-dark-gray border netflix-light-gray rounded px-4 py-2 mb-4 focus-ring-netflix-red" />
+        <input id="password" type="password" placeholder="Password" class="w-full netflix-dark-gray border netflix-light-gray rounded px-4 py-2 mb-4 focus-ring-netflix-red" />
+        <button id="login-btn" class="w-full bg-netflix-red text-white py-2 rounded font-bold hover-bg-red-700 transition">Login</button>
       </div>
     </div>
 
-    <!-- Main App (hidden until login) -->
     <template id="main-app">
-      <nav class="flex items-center justify-between px-6 py-4 bg-black/80 fixed top-0 w-full z-50">
+      <nav class="flex items-center justify-between px-6 py-4 bg-netflix-dark fixed top-0 w-full z-50">
         <div class="flex items-center space-x-8">
-          <h1 class="text-2xl font-bold text-netflix-red">ru-share</h1>
-          <div class="hidden md:flex space-x-4">
-            <a href="#" class="hover:text-netflix-red transition" onclick="app.showSection('home')">Home</a>
-            <a href="#" class="hover:text-netflix-red transition" onclick="app.showSection('movies')">Movies</a>
-            <a href="#" class="hover:text-netflix-red transition" onclick="app.showSection('tv')">TV Shows</a>
+          <h1 class="text-2xl font-bold netflix-red">ru-share</h1>
+          <div class="space-x-4">
+            <a href="#" class="hover-text-netflix-red transition" onclick="app.showSection('home')">Home</a>
           </div>
         </div>
         <div class="flex items-center space-x-4">
-          <span id="user-info" class="text-netflix-light-gray"></span>
-          <button onclick="app.logout()" class="text-netflix-light-gray hover:text-white">Logout</button>
+          <span id="user-info" class="netflix-light-gray"></span>
+          <button onclick="app.logout()" class="netflix-light-gray hover-text-white">Logout</button>
         </div>
       </nav>
 
       <main class="pt-20">
         <section id="admin-panel" class="hidden px-6 mb-8">
-          <h2 class="text-xl font-bold mb-4 text-netflix-red">Admin Panel</h2>
-          <div class="bg-netflix-dark-gray p-4 rounded-lg mb-4">
+          <h2 class="text-xl font-bold mb-4 netflix-red">Admin Panel</h2>
+          <div class="netflix-dark-gray p-4 rounded-lg mb-4">
             <h3 class="font-bold mb-2">Create User</h3>
             <div class="flex space-x-2">
-              <input id="new-username" type="text" placeholder="Username" class="bg-netflix-dark rounded px-3 py-1 flex-1">
-              <input id="new-password" type="password" placeholder="Password" class="bg-netflix-dark rounded px-3 py-1 flex-1">
+              <input id="new-username" type="text" placeholder="Username" class="netflix-dark rounded px-3 py-1 flex-1" />
+              <input id="new-password" type="password" placeholder="Password" class="netflix-dark rounded px-3 py-1 flex-1" />
               <button onclick="app.createUser()" class="bg-netflix-red px-4 rounded">Create</button>
             </div>
           </div>
-          <div id="users-list" class="bg-netflix-dark-gray p-4 rounded-lg">
+          <div id="users-list" class="netflix-dark-gray p-4 rounded-lg">
             <h3 class="font-bold mb-2">Users</h3>
             <div id="users-container" class="space-y-2"></div>
           </div>
         </section>
 
         <section id="home-section" class="section px-6 mb-8">
-          <h2 class="text-xl font-semibold mb-4">Continue Watching</h2>
-          <div id="continue-watching" class="flex space-x-4 overflow-x-auto pb-4 scrollbar-hide"></div>
-        </section>
-
-        <section id="movies-section" class="section hidden px-6 mb-8">
-          <h2 class="text-xl font-semibold mb-4">Movies</h2>
-          <div id="movies-grid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-4"></div>
-        </section>
-
-        <section id="tv-section" class="section hidden px-6 mb-8">
-          <h2 class="text-xl font-semibold mb-4">TV Shows</h2>
-          <div id="tv-grid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-4"></div>
+          <h2 class="text-xl font-semibold mb-4">Library</h2>
+          <div id="library-list" class="flex space-x-4 overflow-x-auto pb-4 scrollbar-hide"></div>
         </section>
       </main>
     </template>
   </div>
 
   <script>
-  class MediaApp {
-    constructor() {
-      this.session = null;
-      this.init();
-    }
-
-    init() {
-      this.setupLogin();
-      this.checkSavedSession();
-    }
-
-    setupLogin() {
-      document.getElementById('login-btn').addEventListener('click', () => this.login());
-      document.getElementById('password').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') this.login();
-      });
-    }
-
-    checkSavedSession() {
-      const saved = localStorage.getItem('session');
-      if (saved) {
-        this.session = JSON.parse(saved);
-        this.loadLibrary();
+    class MediaApp {
+      constructor() {
+        this.csrf_token = null;
+        this.init();
       }
-    }
 
-    async login() {
-      const username = document.getElementById('username').value;
-      const password = document.getElementById('password').value;
+      init() {
+        this.setupLogin();
+      }
 
-      try {
-        const res = await fetch('/api/login', {
+      setupLogin() {
+        document.getElementById('login-btn').addEventListener('click', () => this.login());
+        document.getElementById('password').addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') this.login();
+        });
+      }
+
+      async login() {
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+
+        try {
+          const res = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            this.csrf_token = data.csrf_token;
+            localStorage.setItem('csrf_token', this.csrf_token);
+            localStorage.setItem('username', data.username);
+            localStorage.setItem('is_admin', data.is_admin);
+            document.getElementById('login-view').remove();
+            this.loadLibrary();
+          } else {
+            alert('Login failed');
+          }
+        } catch (err) {
+          alert('Connection failed');
+        }
+      }
+
+      async loadLibrary() {
+        try {
+          const res = await fetch('/api/library', {
+            credentials: 'include'
+          });
+          if (res.ok) {
+            const items = await res.json();
+            this.renderLibrary(items);
+            document.getElementById('user-info').textContent = localStorage.getItem('username') || 'User';
+            if (localStorage.getItem('is_admin') === 'true') {
+              document.getElementById('admin-panel').classList.remove('hidden');
+              this.loadUsers();
+            }
+          }
+        } catch {}
+      }
+
+      renderLibrary(items) {
+        const container = document.getElementById('library-list');
+        if (!container) return;
+
+        if (!items || items.length === 0) {
+          container.innerHTML = '<p class="netflix-light-gray py-4">No media found. Ask an admin to run a scan.</p>';
+          return;
+        }
+
+        container.innerHTML = items.map(item => {
+          const title = item.title || item.filename || 'Untitled';
+          return `
+            <div class="cursor-pointer flex-shrink-0 w-48" onclick="app.playMedia('${item.id}')">
+              <img src="${item.poster_url || ''}"
+                   alt="${title}"
+                   class="w-48 h-72 object-cover rounded"
+                   onerror="this.style.display='none'" />
+              <p class="mt-2 text-sm truncate">${title}</p>
+            </div>
+          `;
+        }).join('');
+      }
+
+      async loadUsers() {
+        const res = await fetch('/api/admin/users', {
+          credentials: 'include'
+        });
+        if (res.ok) {
+          const users = await res.json();
+          document.getElementById('users-container').innerHTML = users.map(u => `
+            <div class="flex justify-between items-center py-2 border-b border-netflix-dark">
+              <span>${u.username} ${u.is_admin ? '[Admin]' : ''}</span>
+              ${!u.is_admin ? `<button onclick="app.deleteUser(${u.id})" class="text-red-500 text-sm">Delete</button>` : ''}
+            </div>
+          `).join('');
+        }
+      }
+
+      async createUser() {
+        const username = document.getElementById('new-username').value;
+        const password = document.getElementById('new-password').value;
+
+        const res = await fetch('/api/admin/users', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': this.csrf_token
+          },
+          credentials: 'include',
           body: JSON.stringify({ username, password })
         });
 
         if (res.ok) {
-          const data = await res.json();
-          this.session = data;
-          localStorage.setItem('session', JSON.stringify(data));
-          document.getElementById('login-view').remove();
-          this.loadLibrary();
+          this.loadUsers();
+          document.getElementById('new-username').value = '';
+          document.getElementById('new-password').value = '';
         } else {
-          alert('Login failed');
+          alert('Failed to create user');
         }
-      } catch (err) {
-        alert('Connection failed');
       }
-    }
 
-    async loadLibrary() {
-      try {
-        const res = await fetch('/api/library', {
-          headers: { Cookie: `session_id=${this.session.session_id}` }
+      async deleteUser(id) {
+        if (!confirm('Delete this user?')) return;
+        await fetch('/api/admin/users/' + id, {
+          method: 'DELETE',
+          headers: {
+            'X-CSRF-Token': this.csrf_token
+          },
+          credentials: 'include'
         });
-        if (res.ok) {
-          const items = await res.json();
-          this.renderLibrary(items);
-          document.getElementById('user-info').textContent = this.session.username;
-          if (this.session.is_admin) {
-            document.getElementById('admin-panel').classList.remove('hidden');
-            this.loadUsers();
-          }
-        }
-      } catch {}
-    }
-
-    renderLibrary(items) {
-      const container = document.getElementById('movies-grid');
-      container.innerHTML = items.map(item => `
-        <div class="cursor-pointer" onclick="app.playMedia('${item.id}')">
-          <img src="${item.poster_url || 'https://placehold.co/300x450/netflix-red/white?text=' + encodeURIComponent(item.title || item.filename)}" 
-               alt="${item.title || item.filename}" class="w-full h-64 object-cover rounded">
-          <p class="mt-1 text-sm truncate">${item.title || item.filename}</p>
-        </div>
-      `).join('');
-    }
-
-    async loadUsers() {
-      const res = await fetch('/api/admin/users', {
-        headers: { Cookie: `session_id=${this.session.session_id}` }
-      });
-      if (res.ok) {
-        const users = await res.json();
-        document.getElementById('users-container').innerHTML = users.map(u => `
-          <div class="flex justify-between items-center py-2 border-b border-netflix-dark">
-            <span>${u.username} ${u.is_admin ? '[Admin]' : ''}</span>
-            ${!u.is_admin ? `<button onclick="app.deleteUser(${u.id})" class="text-red-500 text-sm">Delete</button>` : ''}
-          </div>
-        `).join('');
-      }
-    }
-
-    async createUser() {
-      const username = document.getElementById('new-username').value;
-      const password = document.getElementById('new-password').value;
-      
-      const res = await fetch('/api/admin/users', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          Cookie: `session_id=${this.session.session_id}`
-        },
-        body: JSON.stringify({ username, password })
-      });
-      
-      if (res.ok) {
         this.loadUsers();
-        document.getElementById('new-username').value = '';
-        document.getElementById('new-password').value = '';
-      } else {
-        alert('Failed to create user');
+      }
+
+      async logout() {
+        await fetch('/api/logout', {
+          method: 'GET',
+          credentials: 'include'
+        });
+        localStorage.removeItem('csrf_token');
+        localStorage.removeItem('username');
+        localStorage.removeItem('is_admin');
+        location.reload();
+      }
+
+      showSection(section) {
+        document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+        document.getElementById(section + '-section').classList.remove('hidden');
+      }
+
+      playMedia(id) {
+        // Wire to the player in a later step
       }
     }
 
-    async deleteUser(id) {
-      if (!confirm('Delete this user?')) return;
-      await fetch('/api/admin/users/' + id, {
-        method: 'DELETE',
-        headers: { Cookie: `session_id=${this.session.session_id}` }
-      });
-      this.loadUsers();
-    }
-
-    showSection(section) {
-      document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
-      document.getElementById(section + '-section').classList.remove('hidden');
-    }
-
-    logout() {
-      localStorage.removeItem('session');
-      location.reload();
-    }
-  }
-
-  const app = new MediaApp();
+    const app = new MediaApp();
   </script>
 </body>
 </html>

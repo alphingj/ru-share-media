@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+#[allow(dead_code)]
 pub struct MediaFile {
   pub id: String,
   pub user_id: i64,
@@ -17,6 +18,7 @@ pub struct MediaFile {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+#[allow(dead_code)]
 pub struct MediaMetadata {
   pub media_id: String,
   pub tmdb_id: Option<i64>,
@@ -51,6 +53,7 @@ pub struct MediaItem {
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
+#[allow(dead_code)]
 pub struct User {
   pub id: i64,
   pub username: String,
@@ -61,6 +64,7 @@ pub struct User {
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
+#[allow(dead_code)]
 pub struct WatchHistory {
   pub user_id: i64,
   pub media_id: String,
@@ -70,17 +74,20 @@ pub struct WatchHistory {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct CreatePlaylist {
   pub name: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct PlaylistItem {
   pub media_id: String,
   pub position: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct ServerStats {
   pub total_files: i64,
   pub total_size_bytes: i64,
