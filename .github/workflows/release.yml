@@ -89,17 +89,18 @@ jobs:
         id: date
         run: echo "date=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
 
-      - name: Create GitHub Release
+      - name: Create or update GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "${{ github.ref_name }}" \
-            --title "ru-share-media ${{ github.ref_name }}" \
-            --notes "Release ${{ github.ref_name }} - ${{ steps.date.outputs.date }}
-
-Multi-arch binaries included:
-- x86_64-linux
-- aarch64-linux
-- armv7-linux
-- armv6-linux" \
-            release-assets/*
+          TAG="v3.0.1"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "ru-share-media $TAG" \
+              --notes "Release $TAG - multi-arch\n\nBuilt for: x86_64, aarch64, armv7, armv6"
+            gh release upload "$TAG" release-assets/* --clobber
+          else
+            gh release create "$TAG" \
+              --title "ru-share-media $TAG" \
+              --notes "Release $TAG - multi-arch\n\nBuilt for: x86_64, aarch64, armv7, armv6" \
+              release-assets/*
+          fi
