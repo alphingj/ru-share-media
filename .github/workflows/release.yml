@@ -104,4 +104,4 @@ jobs:
               --title "ru-share-media $TAG" \
               --notes "Release $TAG - multi-arch\n\nBuilt for: x86_64, aarch64, armv7, armv6" \
               release-assets/*
-          fi
+          fiThursday 09 July 2026 12:27:27 AM IST - Release workflow update
