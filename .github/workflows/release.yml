@@ -21,7 +21,10 @@ jobs:
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
-            name: ru-share-media-x64-linux
+            name: ru-share-media-x86_64-linux
+            cross: false
+          - target: x86_64-unknown-linux-musl
+            name: ru-share-media-x86_64-musl-linux
             cross: false
           - target: i686-unknown-linux-gnu
             name: ru-share-media-x86-linux
@@ -32,8 +35,14 @@ jobs:
           - target: armv7-unknown-linux-gnueabihf
             name: ru-share-media-armv7-linux
             cross: true
+          - target: armv7-unknown-linux-musleabihf
+            name: ru-share-media-armv7-musl-linux
+            cross: true
           - target: arm-unknown-linux-gnueabihf
             name: ru-share-media-armv6-linux
+            cross: true
+          - target: arm-unknown-linux-musleabihf
+            name: ru-share-media-armv6-musl-linux
             cross: true
 
     steps:
@@ -48,22 +57,32 @@ jobs:
       - name: Install target
         run: rustup target add ${{ matrix.target }}
 
-      - name: Install cross toolchains
+      - name: Install cross tool
         if: matrix.cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Install musl tools
+        if: matrix.target == 'x86_64-unknown-linux-musl'
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu gcc-i686-linux-gnu
+          sudo apt-get install -y musl-tools
 
-      - name: Build release
+      - name: Build release (native cargo)
+        if: ${{ !matrix.cross }}
         env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-          CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER: arm-linux-gnueabihf-gcc
-          CARGO_TARGET_ARM_UNKNOWN_LINUX_GNUEABIHF_LINKER: arm-linux-gnueabihf-gcc
-          CARGO_TARGET_I686_UNKNOWN_LINUX_GNU_LINKER: i686-linux-gnu-gcc
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
         run: |
           BUILD_DIR=target-release
           mkdir -p "$BUILD_DIR"
           cargo build --release --target ${{ matrix.target }}
+          cp target/${{ matrix.target }}/release/ru-share-media "$BUILD_DIR/${{ matrix.name }}"
+
+      - name: Build release (cross)
+        if: matrix.cross
+        run: |
+          BUILD_DIR=target-release
+          mkdir -p "$BUILD_DIR"
+          cross build --release --target ${{ matrix.target }}
           cp target/${{ matrix.target }}/release/ru-share-media "$BUILD_DIR/${{ matrix.name }}"
 
       - name: Compute checksums
@@ -112,11 +131,11 @@ jobs:
           TAG="${RELEASE_TAG}"
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release edit "$TAG" --title "ru-share-media $TAG" \
-              --notes "Release $TAG - multi-arch\n\nBuilt for: x64, x86, aarch64, armv7, armv6"
+              --notes "Release $TAG - multi-arch\n\nBuilt for: x86_64 (gnu/musl), x86, aarch64, armv7 (gnu/musl), armv6 (gnu/musl)"
             gh release upload "$TAG" release-assets/* --clobber
           else
             gh release create "$TAG" \
               --title "ru-share-media $TAG" \
-              --notes "Release $TAG - multi-arch\n\nBuilt for: x64, x86, aarch64, armv7, armv6" \
+              --notes "Release $TAG - multi-arch\n\nBuilt for: x86_64 (gnu/musl), x86, aarch64, armv7 (gnu/musl), armv6 (gnu/musl)" \
               release-assets/*
           fi

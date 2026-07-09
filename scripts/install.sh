@@ -22,10 +22,28 @@ detect_version() {
 download_binary() {
   local arch
   case "$(uname -m)" in
-    x86_64|amd64) arch="ru-share-media-x86_64-linux" ;;
+    x86_64|amd64)
+      if ldd --version 2>/dev/null | grep -q musl; then
+        arch="ru-share-media-x86_64-musl-linux"
+      else
+        arch="ru-share-media-x86_64-linux"
+      fi
+      ;;
     aarch64|arm64) arch="ru-share-media-aarch64-linux" ;;
-    armv7l*) arch="ru-share-media-armv7-linux" ;;
-    armv6l*) arch="ru-share-media-armv6-musl-linux" ;;
+    armv7l*)
+      if ldd --version 2>/dev/null | grep -q musl; then
+        arch="ru-share-media-armv7-musl-linux"
+      else
+        arch="ru-share-media-armv7-linux"
+      fi
+      ;;
+    armv6l*)
+      if ldd --version 2>/dev/null | grep -q musl; then
+        arch="ru-share-media-armv6-musl-linux"
+      else
+        arch="ru-share-media-armv6-linux"
+      fi
+      ;;
     *) err "Unsupported architecture" ;;
   esac
   

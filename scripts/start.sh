@@ -1,7 +1,7 @@
 #!/bin/bash
 # ru-share-media Quick Start Script
 
-set -euo pipefield
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN="${SCRIPT_DIR}/ru-share-media"
@@ -11,10 +11,28 @@ info() { printf '→ %s\n' "$*"; }
 
 detect_arch() {
   case "$(uname -m)" in
-    x86_64|amd64) echo "ru-share-media-x86_64-linux" ;;
+    x86_64|amd64)
+      if ldd --version 2>/dev/null | grep -q musl; then
+        echo "ru-share-media-x86_64-musl-linux"
+      else
+        echo "ru-share-media-x86_64-linux"
+      fi
+      ;;
     aarch64|arm64) echo "ru-share-media-aarch64-linux" ;;
-    armv7l*) echo "ru-share-media-armv7-linux" ;;
-    armv6l*) echo "ru-share-media-armv6-musl-linux" ;;
+    armv7l*)
+      if ldd --version 2>/dev/null | grep -q musl; then
+        echo "ru-share-media-armv7-musl-linux"
+      else
+        echo "ru-share-media-armv7-linux"
+      fi
+      ;;
+    armv6l*)
+      if ldd --version 2>/dev/null | grep -q musl; then
+        echo "ru-share-media-armv6-musl-linux"
+      else
+        echo "ru-share-media-armv6-linux"
+      fi
+      ;;
     *) err "Unsupported arch" ;;
   esac
 }

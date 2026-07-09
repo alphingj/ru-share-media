@@ -4,7 +4,8 @@ set -euo pipefail
 # Native build script for DietPi / ARM
 # Installs dependencies and builds ru-share-media locally on the device.
 
-SUDO=${SUDO:-sudo}
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 info() { printf '→ %s\n' "$*"; }
 err() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
@@ -12,10 +13,10 @@ err() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 [ "$(id -u)" -eq 0 ] || err "Run with sudo or as root"
 
 info "Updating package lists..."
-${SUDO} apt-get update
+apt-get update
 
 info "Installing build dependencies..."
-${SUDO} apt-get install -y --no-install-recommends \
+apt-get install -y --no-install-recommends \
   build-essential \
   pkg-config \
   libssl-dev \
@@ -35,6 +36,8 @@ fi
 rustup default stable
 rustc --version
 cargo --version
+
+cd "$REPO_DIR"
 
 info "Building ru-share-media in release mode (native ARM)..."
 cargo build --release

@@ -29,7 +29,13 @@ detect_arch() {
       fi
       ;;
     aarch64|arm64) echo "ru-share-media-aarch64-linux" ;;
-    armv7l*) echo "ru-share-media-armv7-linux" ;;
+    armv7l*)
+      if ldd --version 2>/dev/null | grep -q musl; then
+        echo "ru-share-media-armv7-musl-linux"
+      else
+        echo "ru-share-media-armv7-linux"
+      fi
+      ;;
     armv6l*)
       if ldd --version 2>/dev/null | grep -q musl; then
         echo "ru-share-media-armv6-musl-linux"
@@ -127,14 +133,32 @@ compile_fallback() {
 detect_target() {
   # Map arch to Rust target
   case "$(uname -m)" in
-    x86_64|amd64) echo "x86_64-unknown-linux-gnu" ;;
-    aarch64|arm64) echo "aarch64-unknown-linux-gnu" ;;
-    armv7l*) echo "armv7-unknown-linux-gnueabihf" ;;
+    x86_64|amd64)
+      if ldd --version 2>/dev/null | grep -q musl; then
+        echo "x86_64-unknown-linux-musl"
+      else
+        echo "x86_64-unknown-linux-gnu"
+      fi
+      ;;
+    aarch64|arm64)
+      if ldd --version 2>/dev/null | grep -q musl; then
+        echo "aarch64-unknown-linux-musl"
+      else
+        echo "aarch64-unknown-linux-gnu"
+      fi
+      ;;
+    armv7l*)
+      if ldd --version 2>/dev/null | grep -q musl; then
+        echo "armv7-unknown-linux-musleabihf"
+      else
+        echo "armv7-unknown-linux-gnueabihf"
+      fi
+      ;;
     armv6l*)
       if ldd --version 2>/dev/null | grep -q musl; then
-        echo "armv6-unknown-linux-gnueabihf"
+        echo "arm-unknown-linux-musleabihf"
       else
-        echo "arm-unknown-linux-gnueabi"
+        echo "arm-unknown-linux-gnueabihf"
       fi
       ;;
     *) echo "$(uname -m)-unknown-linux-gnu" ;;
