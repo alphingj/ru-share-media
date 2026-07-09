@@ -22,6 +22,7 @@
     .p-8 { padding: 2rem; }
     .rounded-lg { border-radius: 0.5rem; }
     .mb-4 { margin-bottom: 1rem; }
+    .mt-4 { margin-top: 1rem; }
     .w-full { width: 100%; }
     .px-4 { padding-left: 1rem; padding-right: 1rem; }
     .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
@@ -88,6 +89,12 @@
           <div id="users-list" class="netflix-dark-gray p-4 rounded-lg">
             <h3 class="font-bold mb-2">Users</h3>
             <div id="users-container" class="space-y-2"></div>
+          </div>
+          <div class="netflix-dark-gray p-4 rounded-lg mt-4">
+            <h3 class="font-bold mb-2">CORS Origins</h3>
+            <p class="netflix-light-gray text-sm mb-2">Use comma or newline-separated origins/CIDR entries. Use * to allow all origins.</p>
+            <textarea id="cors-origins" rows="4" class="w-full netflix-dark rounded px-3 py-2 mb-2" placeholder="http://localhost:8080&#10;http://10.147.17.0/24"></textarea>
+            <button onclick="app.saveCorsOrigins()" class="bg-netflix-red px-4 py-2 rounded">Save CORS</button>
           </div>
         </section>
 
@@ -156,6 +163,7 @@
             if (localStorage.getItem('is_admin') === 'true') {
               document.getElementById('admin-panel').classList.remove('hidden');
               this.loadUsers();
+              this.loadCorsOrigins();
             }
           }
         } catch {}
@@ -232,6 +240,32 @@
           credentials: 'include'
         });
         this.loadUsers();
+      }
+
+      async loadCorsOrigins() {
+        const res = await fetch('/api/admin/cors', {
+          credentials: 'include'
+        });
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('cors-origins').value = data.origins || '';
+        }
+      }
+
+      async saveCorsOrigins() {
+        const origins = document.getElementById('cors-origins').value;
+        const res = await fetch('/api/admin/cors', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': this.csrf_token
+          },
+          credentials: 'include',
+          body: JSON.stringify({ origins })
+        });
+        if (!res.ok) {
+          alert('Failed to save CORS origins');
+        }
       }
 
       async logout() {

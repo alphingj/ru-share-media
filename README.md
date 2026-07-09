@@ -50,7 +50,7 @@ Environment variables:
 
 1. Start the server
 2. Login with admin credentials
-3. Configure CORS origins if needed
+3. Configure CORS origins in the admin panel if needed
 4. Upload media files to the media directory
 5. Run a scan via the admin panel to index media
 
@@ -65,6 +65,8 @@ Environment variables:
 | POST | `/api/admin/users` | ✅+Admin | Create new user |
 | GET | `/api/admin/users` | ✅+Admin | List all users |
 | DELETE | `/api/admin/users/:id` | ✅+Admin | Delete user |
+| GET | `/api/admin/cors` | ✅+Admin | Read current CORS origins |
+| PUT | `/api/admin/cors` | ✅+Admin | Update CORS origins (comma/newline-separated, supports CIDR and `*`) |
 | GET | `/api/health` | ❌ | Health check |
 
 ## Security

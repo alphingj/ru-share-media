@@ -28,11 +28,12 @@ use crate::auth::{extract_csrf_token, generate_csrf_token, validate_csrf_token, 
 // ===================== CORS with CIDR subnet support =====================
 
 struct CorsConfig {
+  allow_all: bool,
   exact: Vec<String>,
   subnets: Vec<(u32, u32)>, // (network, mask) host order, IPv4
 }
 
-static CORS_CONFIG: OnceLock<Arc<CorsConfig>> = OnceLock::new();
+static CORS_CONFIG: OnceLock<Arc<RwLock<CorsConfig>>> = OnceLock::new();
 
 fn parse_cidr(cidr: &str) -> Option<(u32, u32)> {
   let (ip_part, prefix_part) = cidr.split_once('/')?;
@@ -54,11 +55,16 @@ fn parse_cidr(cidr: &str) -> Option<(u32, u32)> {
 }
 
 fn build_cors_config(input: &str) -> CorsConfig {
+  let mut allow_all = false;
   let mut exact = Vec::new();
   let mut subnets = Vec::new();
-  for part in input.split(',') {
+  for part in input.split(|c: char| c == ',' || c == '\n' || c == '\r' || c == ';') {
     let p = part.trim();
     if p.is_empty() {
+      continue;
+    }
+    if p == "*" {
+      allow_all = true;
       continue;
     }
     if p.contains('/') {
@@ -69,10 +75,13 @@ fn build_cors_config(input: &str) -> CorsConfig {
     }
     exact.push(p.to_string());
   }
-  CorsConfig { exact, subnets }
+  CorsConfig { allow_all, exact, subnets }
 }
 
 fn origin_allowed(cfg: &CorsConfig, origin: &str) -> bool {
+  if cfg.allow_all {
+    return true;
+  }
   if cfg.exact.iter().any(|e| e == origin) {
     return true;
   }
@@ -113,14 +122,16 @@ async fn cors_middleware(
   if is_preflight {
     let mut resp = Response::new(Body::empty());
     if let (Some(cfg), Some(o)) = (CORS_CONFIG.get(), &origin) {
-      apply_cors_to(cfg, o, resp.headers_mut());
+      let cfg = cfg.read().await;
+      apply_cors_to(&cfg, o, resp.headers_mut());
     }
     return resp;
   }
 
   let mut response = next.run(req).await;
   if let (Some(cfg), Some(o)) = (CORS_CONFIG.get(), &origin) {
-    apply_cors_to(cfg, o, response.headers_mut());
+    let cfg = cfg.read().await;
+    apply_cors_to(&cfg, o, response.headers_mut());
   }
   response
 }
@@ -237,6 +248,52 @@ async fn validate_session_csrf(pool: &SqlitePool, headers: &axum::http::HeaderMa
     return Err(StatusCode::FORBIDDEN);
   }
   Ok((uid, admin))
+}
+
+async fn load_cors_origins(pool: &SqlitePool) -> Result<String, sqlx::Error> {
+  let db_value: Option<String> = sqlx::query_scalar(
+    "SELECT value FROM app_settings WHERE key = 'cors_origins'"
+  )
+  .fetch_optional(pool)
+  .await?;
+  if let Some(value) = db_value {
+    return Ok(value);
+  }
+
+  let initial = db::get_cors_origins();
+  let now = std::time::SystemTime::now()
+    .duration_since(std::time::UNIX_EPOCH)
+    .unwrap()
+    .as_secs() as i64;
+  sqlx::query("INSERT INTO app_settings (key, value, updated_at) VALUES ('cors_origins', ?, ?)")
+    .bind(&initial)
+    .bind(now)
+    .execute(pool)
+    .await?;
+  Ok(initial)
+}
+
+async fn save_cors_origins(pool: &SqlitePool, origins: &str) -> Result<(), sqlx::Error> {
+  let now = std::time::SystemTime::now()
+    .duration_since(std::time::UNIX_EPOCH)
+    .unwrap()
+    .as_secs() as i64;
+  sqlx::query(
+    "INSERT INTO app_settings (key, value, updated_at) VALUES ('cors_origins', ?, ?) \
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at"
+  )
+  .bind(origins)
+  .bind(now)
+  .execute(pool)
+  .await?;
+  Ok(())
+}
+
+async fn update_cors_config(origins: &str) {
+  if let Some(cfg_lock) = CORS_CONFIG.get() {
+    let mut cfg = cfg_lock.write().await;
+    *cfg = build_cors_config(origins);
+  }
 }
 
 // ===================== Handlers =====================
@@ -426,6 +483,11 @@ struct CreateUserRequest {
   password: String,
 }
 
+#[derive(Deserialize)]
+struct UpdateCorsRequest {
+  origins: String,
+}
+
 async fn create_user_handler(
   State(pool): State<SqlitePool>,
   headers: axum::http::HeaderMap,
@@ -469,6 +531,43 @@ async fn create_user_handler(
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
   Ok(StatusCode::CREATED)
+}
+
+async fn get_cors_handler(
+  State(pool): State<SqlitePool>,
+  headers: axum::http::HeaderMap,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+  let (_user_id, is_admin) = validate_session(&pool, &headers).await?;
+  if !is_admin {
+    return Err(StatusCode::FORBIDDEN);
+  }
+
+  let origins = load_cors_origins(&pool)
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+  Ok(Json(serde_json::json!({ "origins": origins })))
+}
+
+async fn update_cors_handler(
+  State(pool): State<SqlitePool>,
+  headers: axum::http::HeaderMap,
+  Json(input): Json<UpdateCorsRequest>,
+) -> Result<StatusCode, StatusCode> {
+  let (_user_id, is_admin) = validate_session_csrf(&pool, &headers).await?;
+  if !is_admin {
+    return Err(StatusCode::FORBIDDEN);
+  }
+
+  let origins = input.origins.trim();
+  if origins.is_empty() || origins.len() > 4096 {
+    return Err(StatusCode::BAD_REQUEST);
+  }
+
+  save_cors_origins(&pool, origins)
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+  update_cors_config(origins).await;
+  Ok(StatusCode::NO_CONTENT)
 }
 
 async fn list_users_handler(
@@ -545,8 +644,8 @@ async fn main() {
   let _ = tokio::fs::create_dir_all(&format!("{}/thumbnails", data_path)).await;
 
   // Build CORS config (supports exact origins and CIDR subnets) and store globally
-  let cors_input = db::get_cors_origins();
-  CORS_CONFIG.get_or_init(|| Arc::new(build_cors_config(&cors_input)));
+  let cors_input = load_cors_origins(&pool).await.expect("Failed to load CORS origins");
+  CORS_CONFIG.get_or_init(|| Arc::new(RwLock::new(build_cors_config(&cors_input))));
 
   let app = Router::new()
     .route("/api/login", post(login_handler))
@@ -557,6 +656,7 @@ async fn main() {
     .route("/api/health", get(health_handler))
     .route("/api/admin/users", get(list_users_handler).post(create_user_handler))
     .route("/api/admin/users/:id", delete(delete_user_handler))
+    .route("/api/admin/cors", get(get_cors_handler).put(update_cors_handler))
     .nest_service("/hls", ServeDir::new(&format!("{}/hls", data_path)))
     .nest_service("/thumbnails", ServeDir::new(&format!("{}/thumbnails", data_path)))
     .fallback(root_handler)
