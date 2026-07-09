@@ -38,7 +38,3 @@ lto = true
 codegen-units = 1
 panic = "abort"
 opt-level = "z"
-
-[target.armv6-unknown-linux-gnueabihf]
-linker = "arm-linux-gnueabihf-gcc"
-rustflags = ["-C", "target-feature=+soft-float"]
