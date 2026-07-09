@@ -5,6 +5,11 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (for manual runs, e.g. v3.0.1)'
+        required: true
+        type: string
 
 jobs:
   build:
@@ -15,13 +20,16 @@ jobs:
     strategy:
       matrix:
         include:
-          - target: x86_64-unknown-linux-musl
-            name: ru-share-media-x86_64-linux
+          - target: x86_64-unknown-linux-gnu
+            name: ru-share-media-x64-linux
             cross: false
-          - target: aarch64-unknown-linux-musl
+          - target: i686-unknown-linux-gnu
+            name: ru-share-media-x86-linux
+            cross: true
+          - target: aarch64-unknown-linux-gnu
             name: ru-share-media-aarch64-linux
-            cross: false
-          - target: armv7-unknown-linux-musleabihf
+            cross: true
+          - target: armv7-unknown-linux-gnueabihf
             name: ru-share-media-armv7-linux
             cross: true
           - target: arm-unknown-linux-gnueabihf
@@ -40,13 +48,18 @@ jobs:
       - name: Install target
         run: rustup target add ${{ matrix.target }}
 
-      - name: Install ARM toolchain
+      - name: Install cross toolchains
         if: matrix.cross
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu musl-tools musl-dev
+          sudo apt-get install -y gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu gcc-i686-linux-gnu
 
       - name: Build release
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+          CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER: arm-linux-gnueabihf-gcc
+          CARGO_TARGET_ARM_UNKNOWN_LINUX_GNUEABIHF_LINKER: arm-linux-gnueabihf-gcc
+          CARGO_TARGET_I686_UNKNOWN_LINUX_GNU_LINKER: i686-linux-gnu-gcc
         run: |
           BUILD_DIR=target-release
           mkdir -p "$BUILD_DIR"
@@ -69,6 +82,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
 
     steps:
       - uses: actions/checkout@v4
@@ -94,14 +109,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="v3.0.1"
+          TAG="${RELEASE_TAG}"
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release edit "$TAG" --title "ru-share-media $TAG" \
-              --notes "Release $TAG - multi-arch\n\nBuilt for: x86_64, aarch64, armv7, armv6"
+              --notes "Release $TAG - multi-arch\n\nBuilt for: x64, x86, aarch64, armv7, armv6"
             gh release upload "$TAG" release-assets/* --clobber
           else
             gh release create "$TAG" \
               --title "ru-share-media $TAG" \
-              --notes "Release $TAG - multi-arch\n\nBuilt for: x86_64, aarch64, armv7, armv6" \
+              --notes "Release $TAG - multi-arch\n\nBuilt for: x64, x86, aarch64, armv7, armv6" \
               release-assets/*
-          fiThursday 09 July 2026 12:27:27 AM IST - Release workflow update
+          fi
