@@ -98,6 +98,13 @@ CREATE TABLE IF NOT EXISTS transcoded_segments (
     FOREIGN KEY (media_id) REFERENCES media_files(id) ON DELETE CASCADE
 );
 
+-- App settings
+CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY NOT NULL,
+    value TEXT NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_media_metadata_title ON media_metadata(title);
 CREATE INDEX IF NOT EXISTS idx_media_metadata_year ON media_metadata(year);
