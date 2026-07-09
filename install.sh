@@ -22,10 +22,28 @@ err() { printf "${RED}✗${NC} %s\n" "$*" >&2; exit 1; }
 
 detect_arch() {
   case "$(uname -m)" in
-    x86_64|amd64) echo "ru-share-media-x86_64-linux" ;;
+    x86_64|amd64)
+      if ldd --version 2>/dev/null | grep -q musl; then
+        echo "ru-share-media-x86_64-musl-linux"
+      else
+        echo "ru-share-media-x86_64-linux"
+      fi
+      ;;
     aarch64|arm64) echo "ru-share-media-aarch64-linux" ;;
-    armv7l*) echo "ru-share-media-armv7-linux" ;;
-    armv6l*) echo "ru-share-media-armv6-musl-linux" ;;
+    armv7l*)
+      if ldd --version 2>/dev/null | grep -q musl; then
+        echo "ru-share-media-armv7-musl-linux"
+      else
+        echo "ru-share-media-armv7-linux"
+      fi
+      ;;
+    armv6l*)
+      if ldd --version 2>/dev/null | grep -q musl; then
+        echo "ru-share-media-armv6-musl-linux"
+      else
+        echo "ru-share-media-armv6-linux"
+      fi
+      ;;
     *) err "Unsupported architecture" ;;
   esac
 }
